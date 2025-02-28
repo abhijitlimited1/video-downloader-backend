@@ -39,3 +39,6 @@ def fetch_video_info(request):
         except Exception as e:
             logger.error(f"Internal server error: {e}")
             return JsonResponse({"error": "Internal server error", "details": str(e)}, status=500)
+
+    # ✅ Handle GET requests properly
+    return JsonResponse({"error": "Only POST requests are allowed"}, status=405)
