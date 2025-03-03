@@ -9,6 +9,10 @@ from django.views.decorators.http import require_GET
 
 logger = logging.getLogger(__name__)
 
+def generate_stream(response):
+    for chunk in response.iter_content(chunk_size=8192):
+        yield chunk
+
 @require_GET
 def stream_video(request):
     video_url = request.GET.get("url")
@@ -19,22 +23,22 @@ def stream_video(request):
 
     try:
         response = requests.get(video_url, stream=True)
-        
-        # Create streaming response with proper headers
+        response.raise_for_status()  # Raise an error for failed requests
+
         stream_response = StreamingHttpResponse(
-            response.iter_content(chunk_size=8192),
+            generate_stream(response),  # Yield chunks
             content_type=response.headers.get('Content-Type', 'video/mp4')
         )
-        
-        # Set download headers
+
         filename = f"{title[:50]}.mp4".replace("/", "_")
         stream_response['Content-Disposition'] = f'attachment; filename="{filename}"'
-        stream_response['Access-Control-Allow-Origin'] = '*'  # Only for development!
+        stream_response['Access-Control-Allow-Origin'] = '*'
+
         return stream_response
 
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
         logger.error(f"Stream error: {str(e)}")
-        return JsonResponse({"error": "Download failed"}, status=500)
+        return JsonResponse({"error": "Failed to fetch video"}, status=500)
 
 @csrf_exempt
 def fetch_video_info(request):
